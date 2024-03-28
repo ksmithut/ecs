@@ -1,7 +1,7 @@
 {
   "name": "@ksmithut/ecs",
   "description": "An Entity-Component-System library",
-  "version": "0.0.0-alpha.0",
+  "version": "0.0.0-alpha.1",
   "main": "./src/ecs.js",
   "exports": {
     ".": "./src/ecs.js",
@@ -14,6 +14,10 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
+  "files": [
+    "src/**/*.js",
+    "dist/**/*.ts"
+  ],
   "scripts": {
     "start": "node .",
     "start:dev": "node --watch --inspect=0.0.0.0:9229 .",
