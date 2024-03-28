@@ -1,4 +1,4 @@
-export * as v from './validate.js'
+export { default as v } from './validate.js'
 
 // =============================================================================
 // Entity

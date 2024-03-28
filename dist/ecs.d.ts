@@ -14,7 +14,7 @@ export function createWorld(): Readonly<{
     execute(delta: number): void;
     stop(): void;
 }>;
-export * as v from "./validate.js";
+export { default as v } from "./validate.js";
 export type Entity = {};
 export type Component<TState extends import("./validate.js").TypeChecker<any>> = {
     state: TState;

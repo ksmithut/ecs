@@ -1,7 +1,7 @@
 {
   "name": "@ksmithut/ecs",
   "description": "An Entity-Component-System library",
-  "version": "0.0.0-alpha.3",
+  "version": "0.0.0-alpha.4",
   "main": "./src/ecs.js",
   "exports": {
     ".": "./src/ecs.js",
