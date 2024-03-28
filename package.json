@@ -1,8 +1,7 @@
 {
-  "name": "unnamed",
-  "description": "",
+  "name": "@ksmithut/ecs",
+  "description": "An Entity-Component-System library",
   "version": "0.0.0-alpha.0",
-  "private": true,
   "main": "./src/ecs.js",
   "exports": {
     ".": "./src/ecs.js",
@@ -11,6 +10,9 @@
   "type": "module",
   "engines": {
     "node": ">=20.x"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
     "start": "node .",
