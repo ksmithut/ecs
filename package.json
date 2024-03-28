@@ -1,0 +1,26 @@
+{
+  "name": "unnamed",
+  "description": "",
+  "version": "0.0.0-alpha.0",
+  "private": true,
+  "main": "./src/ecs.js",
+  "exports": {
+    ".": "./src/ecs.js",
+    "./validate": "./src/validate.js"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20.x"
+  },
+  "scripts": {
+    "start": "node .",
+    "start:dev": "node --watch --inspect=0.0.0.0:9229 .",
+    "build": "tsc",
+    "test": "c8 --check-coverage --reporter html --reporter text node --test"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "c8": "^9.1.0",
+    "typescript": "^5.4.3"
+  }
+}

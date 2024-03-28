@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "Node",
+    "module": "ESNext",
+    "esModuleInterop": true,
+    "target": "ESNext",
+    "alwaysStrict": true,
+    "strict": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "removeComments": true,
+    "jsx": "react",
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"],
+  "exclude": []
+}
