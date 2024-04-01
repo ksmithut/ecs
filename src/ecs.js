@@ -4,39 +4,54 @@ export { default as v } from './validate.js'
 // Entity
 // =============================================================================
 
-/**
- * @typedef {{}} Entity
- */
-
-/**
- * @returns {Entity}
- */
-function createEntity() {
-  return Object.freeze(Object.create(null))
-}
+export class Entity {}
 
 // =============================================================================
 // Component
 // =============================================================================
 
 /**
- * @template {import('./validate.js').TypeChecker<any>} TState
+ * @template {import('./validate.js').TypeChecker<any>} TSchema
  * @typedef {object} Component
- * @property {TState} state
+ * @property {TSchema} schema
  */
 
 /**
- * @template TComponentType
- * @typedef {TComponentType extends Component<import('./validate.js').TypeChecker<infer X>> ? X : never} ComponentType
+ * @template TComponentSchema
+ * @typedef {TComponentSchema extends Component<import('./validate.js').TypeChecker<infer X>> ? X : never} ComponentSchema
  */
 
 /**
- * @template {import('./validate.js').TypeChecker<any>} TState
- * @param {TState} state
- * @returns {Component<TState>}
+ * @template {import('./validate.js').TypeChecker<any>} TSchema
+ * @param {TSchema} schema
+ * @returns {Component<TSchema>}
  */
-export function createComponent(state) {
-  return Object.freeze({ state })
+export function createComponent(schema) {
+  return Object.freeze({ schema })
+}
+
+// =============================================================================
+// Queries
+// =============================================================================
+
+/**
+ * @typedef {object} QueryResults
+ * @property {Set<Entity>} results
+ * @property {Set<Entity>} added
+ * @property {Set<Entity>} removed
+ */
+
+/**
+ * @param {ReadonlyArray<Component<any>>} components
+ */
+function createQuery(components) {
+  components = components.slice()
+  /**
+   * @param {Map<Component<any>, any>} entityComponents
+   */
+  return (entityComponents) => {
+    return components.every((component) => entityComponents.has(component))
+  }
 }
 
 // =============================================================================
@@ -44,31 +59,36 @@ export function createComponent(state) {
 // =============================================================================
 
 /**
- * @template {import('./validate.js').TypeChecker<any>} TState
- * @template {{[key: string]: Component<any>[]}} TQueries
+ * @template {import('./validate.js').TypeChecker<any>} TSchema
+ * @template {{[key: string]: ReadonlyArray<Component<any>>}} TQueries
  * @typedef {object} System
- * @property {TState} state
+ * @property {TSchema} schema
  * @property {TQueries} queries
- * @property {(state: import('./validate.js').TypeCheckerType<TState>, delta: number, queries: {[Property in keyof TQueries]: Set<Entity>}) => void} execute
- * @property {(state: import('./validate.js').TypeCheckerType<TState>) => (() => void)} [init]
+ * @property {(state: import('./validate.js').TypeCheckerType<TSchema>, delta: number, queries: {[Property in keyof TQueries]: QueryResults}) => void} execute
+ * @property {(state: import('./validate.js').TypeCheckerType<TSchema>) => () => void} init
  */
 
 /**
- * @template TSystemState
- * @typedef {TSystemState extends System<import('./validate.js').TypeChecker<infer X>, any> ? X : never} SystemState
+ * @template TSystemSchema
+ * @typedef {TSystemSchema extends System<import('./validate.js').TypeChecker<infer X>, any> ? X : never} SystemSchema
  */
 
 /**
- * @template {import('./validate.js').TypeChecker<any>} TState
- * @template {{[key: string]: Component<any>[]}} TQueries
- * @param {TState} state
- * @param {(state: import('./validate.js').TypeCheckerType<TState>, delta: number, queries: {[Property in keyof TQueries]: Set<Entity>}) => void} execute
+ * @template {import('./validate.js').TypeChecker<any>} TSchema
+ * @template {{[key: string]: ReadonlyArray<Component<any>>}} TQueries
+ * @param {TSchema} schema
  * @param {TQueries} queries
- * @param {(state: import('./validate.js').TypeCheckerType<TState>) => (() => void)} [init]
- * @returns {System<TState, TQueries>}
+ * @param {(state: import('./validate.js').TypeCheckerType<TSchema>, delta: number, queries: {[Property in keyof TQueries]: QueryResults}) => void} execute
+ * @param {(state: import('./validate.js').TypeCheckerType<TSchema>) => () => void} [init]
+ * @returns {System<TSchema, TQueries>}
  */
-export function createSystem(state, queries, execute, init) {
-  return Object.freeze({ state, queries, execute, init })
+export function createSystem(schema, queries, execute, init = () => () => {}) {
+  return Object.freeze({
+    schema,
+    queries,
+    execute,
+    init
+  })
 }
 
 // =============================================================================
@@ -77,44 +97,71 @@ export function createSystem(state, queries, execute, init) {
 
 /**
  * @typedef {object} EntityState
- * @property {boolean} remove
  * @property {Map<Component<any>, any>} components
- * @property {Set<Component<any>>} componentsToRemove
- * @property {Set<Set<Entity>>} addedTo
- * @property {Set<Set<Entity>>} removedFrom
- * @property {(entity: Entity) => void} onChange
+ * @property {Map<Component<any>, any>} removedComponents
  */
 
-/** @type {WeakMap<Entity, EntityState>} */
-const entityState = new WeakMap()
+/**
+ * @template {System<any, any>} TSystem
+ * @typedef {object} SystemInstance
+ * @property {() => void} close
+ * @property {SystemSchema<TSystem>} state
+ * @property {TSystem} system
+ * @property {object[]} queries
+ * @property {string} queries[].key
+ * @property {ReturnType<createQuery>} queries[].query
+ * @property {QueryResults} queries[].entities
+ */
 
 /**
  * @template {Component<any>} TComponent
  * @param {Entity} entity
  * @param {TComponent} component
- * @returns {ComponentType<TComponent>}
+ * @returns {ComponentSchema<TComponent>}
  */
 export function getComponent(entity, component) {
-  const components = entityState.get(entity)?.components
-  if (!components?.has(component))
-    throw new ReferenceError('entity does not have component')
-  return components.get(component)
+  return getEntityWorld(entity).getComponent(entity, component)
 }
 
 /**
  * @template {Component<any>} TComponent
  * @param {Entity} entity
  * @param {TComponent} component
- * @param {ComponentType<TComponent>} componentState
+ * @returns {boolean}
+ */
+export function hasComponent(entity, component) {
+  return getEntityWorld(entity).hasComponent(entity, component)
+}
+
+/**
+ * @template {Component<any>} TComponent
+ * @param {Entity} entity
+ * @param {TComponent} component
+ * @returns {ComponentSchema<TComponent>}
+ */
+export function getRemovedComponent(entity, component) {
+  return getEntityWorld(entity).getRemovedComponent(entity, component)
+}
+
+/**
+ * @template {Component<any>} TComponent
+ * @param {Entity} entity
+ * @param {TComponent} component
+ * @returns {boolean}
+ */
+export function hasRemovedComponent(entity, component) {
+  return getEntityWorld(entity).hasRemovedComponent(entity, component)
+}
+
+/**
+ * @template {Component<any>} TComponent
+ * @param {Entity} entity
+ * @param {TComponent} component
+ * @param {ComponentSchema<TComponent>} data
  * @returns {Entity}
  */
-export function addComponent(entity, component, componentState) {
-  const state = entityState.get(entity)
-  if (state && !state.remove) {
-    state.components.set(component, componentState)
-    state.onChange(entity)
-  }
-  return entity
+export function addComponent(entity, component, data) {
+  return getEntityWorld(entity).addComponent(entity, component, data)
 }
 
 /**
@@ -123,199 +170,221 @@ export function addComponent(entity, component, componentState) {
  * @returns {Entity}
  */
 export function removeComponent(entity, component) {
-  const state = entityState.get(entity)
-  if (state) {
-    state.componentsToRemove.add(component)
-    state.onChange(entity)
-  }
-  return entity
-}
-
-/**
- * @param {Set<Entity>} query
- * @param {Entity} entity
- */
-export function isAdded(query, entity) {
-  return entityState.get(entity)?.addedTo.has(query) ?? false
-}
-
-/**
- * @param {Set<Entity>} query
- * @param {Entity} entity
- */
-export function isRemoved(query, entity) {
-  const state = entityState.get(entity)
-  if (!state) return true
-  return (state.remove || state.removedFrom.has(query)) ?? true
+  return getEntityWorld(entity).removeComponent(entity, component)
 }
 
 /**
  * @param {Entity} entity
+ * @returns {Entity}
  */
 export function removeEntity(entity) {
-  const state = entityState.get(entity)
-  if (state) {
-    state.remove = true
-  }
+  return getEntityWorld(entity).removeEntity(entity)
 }
-
-/**
- * @typedef {object} SystemInstance
- * @property {System<import('./validate.js').TypeChecker<any>, {[key: string]: Component<any>[]}>} system
- * @property {any} state
- * @property {{key: string, query: EntityQuery, entities: Set<Entity>}[]} queries
- */
 
 /**
  * @param {Entity} entity
- * @returns {Set<Component<any>>}
  */
-function getEntityCalculatedComponents(entity) {
-  const state = entityState.get(entity)
-  if (!state) return new Set()
-  const entityComponents = new Set(state.components.keys())
-  for (const toRemove of state.componentsToRemove)
-    entityComponents.delete(toRemove)
-  return entityComponents
+function getEntityWorld(entity) {
+  const world = entityWorlds.get(entity)
+  if (world) return world
+  throw new ReferenceError('Could not find entity reference')
 }
 
 /**
- * @typedef {ReturnType<createEntityQuery>} EntityQuery
+ * @typedef {object} WorldInternalFunctions
+ * @property {typeof addComponent} addComponent
+ * @property {typeof removeComponent} removeComponent
+ * @property {typeof removeEntity} removeEntity
+ * @property {typeof getComponent} getComponent
+ * @property {typeof hasComponent} hasComponent
+ * @property {typeof getRemovedComponent} getRemovedComponent
+ * @property {typeof hasRemovedComponent} hasRemovedComponent
  */
 
-/**
- * @param {Component<any>[]} components
- */
-function createEntityQuery(components) {
-  /**
-   * @param {Set<Component<any>>} entityComponents
-   */
-  return (entityComponents) => {
-    return components.every((component) => entityComponents.has(component))
-  }
+/** @type {WeakMap<Entity, WorldInternalFunctions>} */
+const entityWorlds = new WeakMap()
+
+/** @type {World|null} */
+let currentWorld = null
+
+export function createEntity() {
+  if (!currentWorld) throw new Error('not in the context of a world')
+  return currentWorld.createEntity()
 }
 
-/** @typedef {ReturnType<createWorld>} World */
+/**
+ * @typedef {ReturnType<createWorld>} World
+ */
 
 export function createWorld() {
+  /** @type {Map<Entity, EntityState>} */
+  const entities = new Map()
   /** @type {Set<Entity>} */
-  const entities = new Set()
-  /** @type {SystemInstance[]} */
+  const removedEntities = new Set()
+
+  /** @type {SystemInstance<System<any, any>>[]} */
   const systems = []
 
-  /**
-   * @param {Entity} entity
-   */
-  function onChange(entity) {
-    const state = entityState.get(entity)
-    if (!state) return
-    const entityComponents = getEntityCalculatedComponents(entity)
-
-    systems.forEach((system) => {
-      system.queries.forEach((query) => {
-        if (query.entities.has(entity)) {
-          if (!query.query(entityComponents)) {
-            state.removedFrom.add(query.entities)
+  /** @type {WorldInternalFunctions} */
+  const worldFunctions = {
+    addComponent(entity, component, data) {
+      const entityComponents = entities.get(entity)
+      if (!entityComponents) return entity
+      entityComponents.components.set(component, data)
+      entityComponents.removedComponents.delete(component)
+      systems.forEach((system) => {
+        system.queries.forEach((query) => {
+          if (
+            !query.entities.results.has(entity) &&
+            query.query(entityComponents.components)
+          ) {
+            query.entities.added.add(entity)
+            query.entities.results.add(entity)
+            query.entities.removed.delete(entity)
           }
-        } else if (query.query(entityComponents)) {
-          state.addedTo.add(query.entities)
-          query.entities.add(entity)
-        }
+          // TODO: If we support Not(Component) we'll need to also check if !query.query(entityComponent.components)
+        })
       })
-    })
+      return entity
+    },
+    removeComponent(entity, component) {
+      const entityComponents = entities.get(entity)
+      if (!entityComponents) return entity
+      if (entityComponents.components.has(component)) {
+        const value = entityComponents.components.get(component)
+        entityComponents.components.delete(component)
+        entityComponents.removedComponents.set(component, value)
+        systems.forEach((system) => {
+          system.queries.forEach((query) => {
+            if (
+              query.entities.results.has(entity) &&
+              !query.query(entityComponents.components)
+            ) {
+              query.entities.added.delete(entity)
+              query.entities.results.delete(entity)
+              query.entities.removed.add(entity)
+            }
+            // TODO: If we support Not(Component) we'll need to also check if (!query.query(entityComponent.components))
+          })
+        })
+      }
+      return entity
+    },
+    removeEntity(entity) {
+      const entityComponents = entities.get(entity)
+      if (!entityComponents) return entity
+      removedEntities.add(entity)
+      entityComponents.components.forEach((value, component) => {
+        entityComponents.removedComponents.set(component, value)
+      })
+      entityComponents.components.clear()
+      systems.forEach((system) => {
+        system.queries.forEach((query) => {
+          if (query.entities.results.has(entity)) {
+            query.entities.added.delete(entity)
+            query.entities.results.delete(entity)
+            query.entities.removed.add(entity)
+          }
+          // TODO: If we support Not(Component) we'll need to also check if (!query.query(entityComponent.components))
+        })
+      })
+      return entity
+    },
+    getComponent(entity, component) {
+      const entityComponents = entities.get(entity)
+      if (!entityComponents?.components.has(component)) {
+        throw new ReferenceError('entity does not have component')
+      }
+      return entityComponents.components.get(component)
+    },
+    hasComponent(entity, component) {
+      return entities.get(entity)?.components.has(component) ?? false
+    },
+    getRemovedComponent(entity, component) {
+      const entityComponents = entities.get(entity)
+      if (!entityComponents?.removedComponents.has(component)) {
+        throw new ReferenceError('entity does not have component')
+      }
+      return entityComponents.removedComponents.get(component)
+    },
+    hasRemovedComponent(entity, component) {
+      return entities.get(entity)?.removedComponents.has(component) ?? false
+    }
   }
 
-  /** @type {(() => void)[]} */
-  const shutdownSystems = []
-
   const world = Object.freeze({
+    createEntity() {
+      const entity = new Entity()
+      entities.set(entity, {
+        components: new Map(),
+        removedComponents: new Map()
+      })
+      entityWorlds.set(entity, worldFunctions)
+      // TODO add to any existing systems
+      return entity
+    },
     /**
      * @template {System<any, any>} TSystem
      * @param {TSystem} system
-     * @param {SystemState<TSystem>} state
+     * @param {SystemSchema<TSystem>} state
      */
     registerSystem(system, state) {
-      /** @type {SystemInstance} */
       const systemInstance = {
-        system,
+        close: system.init(state),
         state,
+        system,
         queries: Object.entries(system.queries).map(([key, components]) => {
-          const query = createEntityQuery(components)
-          const queryEntities = new Set(
-            Array.from(entities).filter((entity) => {
-              const entityComponents = getEntityCalculatedComponents(entity)
-              return query(entityComponents)
-            })
-          )
-          queryEntities.forEach((entity) => {
-            entityState.get(entity)?.addedTo.add(queryEntities)
-          })
-          return { key, query, entities: queryEntities }
+          const query = createQuery(components)
+          /** @type {Set<Entity>} */
+          const added = new Set()
+          for (const [entity, { components }] of entities) {
+            if (query(components)) added.add(entity)
+          }
+          return {
+            key,
+            query,
+            entities: { added, results: new Set(added), removed: new Set() }
+          }
         })
       }
-      const shutdown = system.init?.(state)
-      if (shutdown) shutdownSystems.push(shutdown)
       systems.push(systemInstance)
       return world
-    },
-    createEntity() {
-      const entity = createEntity()
-      /** @type {Map<Component<any>, any>} */
-      const components = new Map()
-      /** @type {EntityState} */
-      const state = {
-        remove: false,
-        addedTo: new Set(),
-        removedFrom: new Set(),
-        components,
-        componentsToRemove: new Set(),
-        onChange
-      }
-      entities.add(entity)
-      entityState.set(entity, state)
-      return entity
     },
     /**
      * @param {number} delta
      */
     execute(delta) {
-      systems.forEach((system) => {
+      currentWorld = world
+      for (const system of systems) {
         const queries = Object.fromEntries(
-          system.queries.map(({ key, entities }) => [key, entities])
+          system.queries.map((query) => {
+            return [
+              query.key,
+              {
+                results: new Set(query.entities.results),
+                added: new Set(query.entities.added),
+                removed: new Set(query.entities.removed)
+              }
+            ]
+          })
         )
         system.system.execute(system.state, delta, queries)
-      })
-
-      const entitiesToRemove = new Set()
-      entities.forEach((entity) => {
-        const state = entityState.get(entity)
-        if (state) {
-          state.addedTo.clear()
-          state.componentsToRemove.forEach((component) => {
-            state.components.delete(component)
-          })
-          state.componentsToRemove.clear()
-          state.removedFrom.forEach((set) => {
-            set.delete(entity)
-          })
-          state.removedFrom.clear()
-          if (state.remove) {
-            entityState.delete(entity)
-            entitiesToRemove.add(entity)
-            entities.delete(entity)
-          }
-        }
-      })
-      if (entitiesToRemove.size) {
-        systems.forEach((system) => {
-          system.queries.forEach((query) => {
-            entitiesToRemove.forEach((entity) => query.entities.delete(entity))
-          })
+      }
+      currentWorld = null
+      for (const [, { removedComponents }] of entities) {
+        removedComponents.clear()
+      }
+      for (const system of systems) {
+        system.queries.forEach((query) => {
+          query.entities.added.clear()
+          query.entities.removed.clear()
         })
       }
-    },
-    stop() {
-      shutdownSystems.forEach((shutdown) => shutdown())
+      for (const entity of removedEntities) {
+        entities.delete(entity)
+        entityWorlds.delete(entity)
+      }
+      removedEntities.clear()
     }
   })
   return world
