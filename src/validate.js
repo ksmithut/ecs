@@ -29,7 +29,7 @@ function isNull() {
 }
 
 function isUndefined() {
-  /** @type {TypeChecker<undefined>} */
+  /** @type {TypeChecker<undefined|void>} */
   return (value) => value === undefined
 }
 

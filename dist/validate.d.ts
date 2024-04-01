@@ -18,10 +18,10 @@ declare function string(): (value: unknown) => value is string;
 declare function number(): (value: unknown) => value is number;
 declare function boolean(): (value: unknown) => value is boolean;
 declare function isNull(): (value: unknown) => value is null;
-declare function isUndefined(): (value: unknown) => value is undefined;
+declare function isUndefined(): (value: unknown) => value is void | undefined;
 declare function or<TA, TB>(isA: TypeChecker<TA>, isB: TypeChecker<TB>): (value: unknown) => value is TA | TB;
 declare function nullable<T>(check: TypeChecker<T>): (value: unknown) => value is T | null;
-declare function optional<T>(check: TypeChecker<T>): (value: unknown) => value is T | undefined;
+declare function optional<T>(check: TypeChecker<T>): (value: unknown) => value is void | T | undefined;
 declare function array<T>(check: TypeChecker<T>): (value: unknown) => value is T[];
 declare function object<TShape extends {
     [key: string]: TypeChecker<any>;

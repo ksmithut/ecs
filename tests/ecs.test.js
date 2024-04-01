@@ -14,16 +14,25 @@ const movementSystem = ecs.createSystem(
   v.null(),
   { entities: [positionComponent, velocityComponent] },
   (_state, delta, { entities }) => {
-    for (const entity of entities) {
+    for (const entity of entities.results) {
       const pos = ecs.getComponent(entity, positionComponent)
       const { x, y } = ecs.getComponent(entity, velocityComponent)
-      if (!ecs.isRemoved(entities, entity)) {
-        pos.x += x * delta
-        pos.y += y * delta
-      }
+      pos.x += x * delta
+      pos.y += y * delta
     }
   }
 )
+
+/**
+ * @template {import('../src/ecs.js').Component<any>} TComponent
+ * @param {import('../src/ecs.js').Entity} entity
+ * @param {TComponent} component
+ * @param {import('../src/ecs.js').ComponentSchema<TComponent>} data
+ * @param {string|Error} [message]
+ */
+function assertComponent(entity, component, data, message) {
+  assert.deepStrictEqual(ecs.getComponent(entity, component), data, message)
+}
 
 test('creates and runs a world with moving entities', () => {
   const world = ecs.createWorld().registerSystem(movementSystem, null)
@@ -35,44 +44,20 @@ test('creates and runs a world with moving entities', () => {
   ecs.addComponent(entity2, velocityComponent, { x: 0, y: 5 })
   const entity3 = world.createEntity()
   ecs.addComponent(entity3, positionComponent, { x: 15, y: -5 })
+
   world.execute(1)
-  assert.deepStrictEqual(ecs.getComponent(entity1, positionComponent), {
-    x: 10,
-    y: -10
-  })
-  assert.deepStrictEqual(ecs.getComponent(entity2, positionComponent), {
-    x: 10,
-    y: 15
-  })
-  assert.deepStrictEqual(ecs.getComponent(entity3, positionComponent), {
-    x: 15,
-    y: -5
-  })
+  assertComponent(entity1, positionComponent, { x: 10, y: -10 })
+  assertComponent(entity2, positionComponent, { x: 10, y: 15 })
+  assertComponent(entity3, positionComponent, { x: 15, y: -5 })
+
   world.execute(2)
-  assert.deepStrictEqual(ecs.getComponent(entity1, positionComponent), {
-    x: 30,
-    y: -30
-  })
-  assert.deepStrictEqual(ecs.getComponent(entity2, positionComponent), {
-    x: 10,
-    y: 25
-  })
-  assert.deepStrictEqual(ecs.getComponent(entity3, positionComponent), {
-    x: 15,
-    y: -5
-  })
+  assertComponent(entity1, positionComponent, { x: 30, y: -30 })
+  assertComponent(entity2, positionComponent, { x: 10, y: 25 })
+  assertComponent(entity3, positionComponent, { x: 15, y: -5 })
+
   ecs.removeComponent(entity2, velocityComponent)
   world.execute(1)
-  assert.deepStrictEqual(ecs.getComponent(entity1, positionComponent), {
-    x: 40,
-    y: -40
-  })
-  assert.deepStrictEqual(ecs.getComponent(entity2, positionComponent), {
-    x: 10,
-    y: 25
-  })
-  assert.deepStrictEqual(ecs.getComponent(entity3, positionComponent), {
-    x: 15,
-    y: -5
-  })
+  assertComponent(entity1, positionComponent, { x: 40, y: -40 })
+  assertComponent(entity2, positionComponent, { x: 10, y: 25 })
+  assertComponent(entity3, positionComponent, { x: 15, y: -5 })
 })

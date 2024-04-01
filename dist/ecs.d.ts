@@ -1,53 +1,63 @@
-export function createComponent<TState extends import("./validate.js").TypeChecker<any>>(state: TState): Component<TState>;
-export function createSystem<TState extends import("./validate.js").TypeChecker<any>, TQueries extends {
-    [key: string]: Component<any>[];
-}>(state: TState, queries: TQueries, execute: (state: import("./validate.js").TypeCheckerType<TState>, delta: number, queries: { [Property in keyof TQueries]: Set<Entity>; }) => void, init?: ((state: import("./validate.js").TypeCheckerType<TState>) => (() => void)) | undefined): System<TState, TQueries>;
-export function getComponent<TComponent extends Component<any>>(entity: Entity, component: TComponent): ComponentType<TComponent>;
-export function addComponent<TComponent extends Component<any>>(entity: Entity, component: TComponent, componentState: ComponentType<TComponent>): Entity;
+export function createComponent<TSchema extends import("./validate.js").TypeChecker<any>>(schema: TSchema): Component<TSchema>;
+export function createSystem<TSchema extends import("./validate.js").TypeChecker<any>, TQueries extends {
+    [key: string]: readonly Component<any>[];
+}>(schema: TSchema, queries: TQueries, execute: (state: import("./validate.js").TypeCheckerType<TSchema>, delta: number, queries: { [Property in keyof TQueries]: QueryResults; }) => void, init?: ((state: import("./validate.js").TypeCheckerType<TSchema>) => () => void) | undefined): System<TSchema, TQueries>;
+export function getComponent<TComponent extends Component<any>>(entity: Entity, component: TComponent): ComponentSchema<TComponent>;
+export function hasComponent<TComponent extends Component<any>>(entity: Entity, component: TComponent): boolean;
+export function getRemovedComponent<TComponent extends Component<any>>(entity: Entity, component: TComponent): ComponentSchema<TComponent>;
+export function hasRemovedComponent<TComponent extends Component<any>>(entity: Entity, component: TComponent): boolean;
+export function addComponent<TComponent extends Component<any>>(entity: Entity, component: TComponent, data: ComponentSchema<TComponent>): Entity;
 export function removeComponent(entity: Entity, component: Component<any>): Entity;
-export function isAdded(query: Set<Entity>, entity: Entity): boolean;
-export function isRemoved(query: Set<Entity>, entity: Entity): boolean;
-export function removeEntity(entity: Entity): void;
+export function removeEntity(entity: Entity): Entity;
+export function createEntity(): Entity;
 export function createWorld(): Readonly<{
-    registerSystem<TSystem extends System<any, any>>(system: TSystem, state: SystemState<TSystem>): Readonly<any>;
     createEntity(): Entity;
+    registerSystem<TSystem extends System<any, any>>(system: TSystem, state: SystemSchema<TSystem>): Readonly<any>;
     execute(delta: number): void;
-    stop(): void;
 }>;
 export { default as v } from "./validate.js";
-export type Entity = {};
-export type Component<TState extends import("./validate.js").TypeChecker<any>> = {
-    state: TState;
+export class Entity {
+}
+export type Component<TSchema extends import("./validate.js").TypeChecker<any>> = {
+    schema: TSchema;
 };
-export type ComponentType<TComponentType> = TComponentType extends Component<import("./validate.js").TypeChecker<infer X>> ? X : never;
-export type System<TState extends import("./validate.js").TypeChecker<any>, TQueries extends {
-    [key: string]: Component<any>[];
+export type ComponentSchema<TComponentSchema> = TComponentSchema extends Component<import("./validate.js").TypeChecker<infer X>> ? X : never;
+export type QueryResults = {
+    results: Set<Entity>;
+    added: Set<Entity>;
+    removed: Set<Entity>;
+};
+export type System<TSchema extends import("./validate.js").TypeChecker<any>, TQueries extends {
+    [key: string]: readonly Component<any>[];
 }> = {
-    state: TState;
+    schema: TSchema;
     queries: TQueries;
-    execute: (state: import('./validate.js').TypeCheckerType<TState>, delta: number, queries: { [Property in keyof TQueries]: Set<Entity>; }) => void;
-    init?: ((state: import('./validate.js').TypeCheckerType<TState>) => (() => void)) | undefined;
+    execute: (state: import('./validate.js').TypeCheckerType<TSchema>, delta: number, queries: { [Property in keyof TQueries]: QueryResults; }) => void;
+    init: (state: import('./validate.js').TypeCheckerType<TSchema>) => () => void;
 };
-export type SystemState<TSystemState> = TSystemState extends System<import("./validate.js").TypeChecker<infer X>, any> ? X : never;
-export type SystemInstance = {
-    system: System<import("./validate.js").TypeChecker<any>, {
-        [key: string]: Component<any>[];
-    }>;
-    state: any;
+export type SystemSchema<TSystemSchema> = TSystemSchema extends System<import("./validate.js").TypeChecker<infer X>, any> ? X : never;
+export type EntityState = {
+    components: Map<Component<any>, any>;
+    removedComponents: Map<Component<any>, any>;
+};
+export type SystemInstance<TSystem extends System<any, any>> = {
+    close: () => void;
+    state: SystemSchema<TSystem>;
+    system: TSystem;
     queries: {
         key: string;
-        query: EntityQuery;
-        entities: Set<Entity>;
-    }[];
+        query: ReturnType<typeof createQuery>;
+        entities: QueryResults;
+    };
 };
-export type EntityQuery = ReturnType<typeof createEntityQuery>;
 export type World = ReturnType<typeof createWorld>;
-export type EntityState = {
-    remove: boolean;
-    components: Map<Component<any>, any>;
-    componentsToRemove: Set<Component<any>>;
-    addedTo: Set<Set<Entity>>;
-    removedFrom: Set<Set<Entity>>;
-    onChange: (entity: Entity) => void;
+export type WorldInternalFunctions = {
+    addComponent: typeof addComponent;
+    removeComponent: typeof removeComponent;
+    removeEntity: typeof removeEntity;
+    getComponent: typeof getComponent;
+    hasComponent: typeof hasComponent;
+    getRemovedComponent: typeof getRemovedComponent;
+    hasRemovedComponent: typeof hasRemovedComponent;
 };
-declare function createEntityQuery(components: Component<any>[]): (entityComponents: Set<Component<any>>) => boolean;
+declare function createQuery(components: ReadonlyArray<Component<any>>): (entityComponents: Map<Component<any>, any>) => boolean;
