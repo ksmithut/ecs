@@ -1,11 +1,17 @@
 {
   "name": "@ksmithut/ecs",
   "description": "An Entity-Component-System library",
-  "version": "0.0.0-alpha.6",
+  "version": "0.0.0-alpha.7",
   "main": "./src/ecs.js",
   "exports": {
-    ".": "./src/ecs.js",
-    "./validate": "./src/validate.js"
+    ".": {
+      "types": "./dist/ecs.d.ts",
+      "default": "./src/ecs.js"
+    },
+    "./validate": {
+      "types": "./dist/validate.d.ts",
+      "default": "./src/validate.js"
+    }
   },
   "types": "./dist/ecs.d.ts",
   "type": "module",
