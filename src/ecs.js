@@ -302,13 +302,24 @@ export function createWorld() {
     },
     getRemovedComponent(entity, component) {
       const entityComponents = entities.get(entity)
-      if (!entityComponents?.removedComponents.has(component)) {
+      if (!entityComponents) {
         throw new ReferenceError('entity does not have component')
       }
-      return entityComponents.removedComponents.get(component)
+      if (entityComponents.removedComponents.has(component)) {
+        return entityComponents.removedComponents.get(component)
+      }
+      if (entityComponents.components.has(component)) {
+        return entityComponents.components.get(component)
+      }
+      throw new ReferenceError('entity does not have component')
     },
     hasRemovedComponent(entity, component) {
-      return entities.get(entity)?.removedComponents.has(component) ?? false
+      const entityComponents = entities.get(entity)
+      if (!entityComponents) return false
+      return (
+        entityComponents.removedComponents.has(component) ||
+        entityComponents.components.has(component)
+      )
     }
   }
 
